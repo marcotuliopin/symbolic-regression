@@ -2,20 +2,28 @@ import numpy as np
 from operator import add, sub, mul, truediv as div
 
 precedence = {
-    mul: 2,
-    div: 2,
-    add: 1,
-    sub: 1,
+    '*': 2,
+    '/': 2,
+    '+': 1,
+    '-': 1,
+}
+
+fn = {
+    '+': add,
+    '-': sub,
+    '*': mul,
+    '/': div,
 }
 
 class Variable:
     @staticmethod
     def evaluate(val: int, number_of_vars: int):
-        return [val % number_of_vars]
+        return [str(val % number_of_vars)]
 
 
 class Operation:
-    rules = [add, sub, mul, div]
+    rules = ['+', '-', '*', '/']
+
     @classmethod
     def evaluate(cls, val: int):
         return [cls.rules[val % len(cls.rules)]]
@@ -26,6 +34,7 @@ class Expression:
         lambda: [Expression(), Operation(), Expression()],
         lambda: [Variable()],
     ]
+
     @classmethod
     def evaluate(cls, val: int, stop_recursion: bool = False):
         if stop_recursion: # Stop recursion if the function is too big.
@@ -41,7 +50,7 @@ def translate(genes: str, number_of_vars: int, codon_size: int, max_function_siz
     number_of_codons = len(genes) // codon_size
 
     while function_idx < len(function):
-        while function_idx < len(function) and is_terminal(function[function_idx]):
+        while function_idx < len(function) and is_terminal(function[function_idx]): # Don't evaluate terminals.
             function_idx += 1
 
         if function_idx >= len(function):
@@ -58,10 +67,10 @@ def translate(genes: str, number_of_vars: int, codon_size: int, max_function_siz
         else:
             val = function[function_idx].evaluate(codon)
 
-        function[function_idx: function_idx + 1] = val
+        function[function_idx: function_idx + 1] = val # Replace the current function with the evaluated one.
         genes_idx = (genes_idx + 1) % number_of_codons
 
-    return function
+    return ''.join(function)
     
 
 def evaluate_function(expr, diffs):
@@ -69,8 +78,8 @@ def evaluate_function(expr, diffs):
     operations = []
     
     for token in expr:
-        if isinstance(token, int): # If its a variable.
-            stack.append(diffs[token])
+        if not token in precedence: # If its a variable.
+            stack.append(diffs[int(token)])
 
         else:
             # When an operation with less precedence is found, we evaluate the stack before
@@ -80,10 +89,10 @@ def evaluate_function(expr, diffs):
                 left = stack.pop()
                 op = operations.pop()
 
-                if op == div and right == 0:
+                if op == '/' and right == 0:
                     right = 1 # Avoid division by zero.
 
-                result = op(left, right)
+                result = fn[op](left, right)
                 stack.append(result) # The result is pushed back to the stack.
 
             operations.append(token)
@@ -92,23 +101,25 @@ def evaluate_function(expr, diffs):
         right = stack.pop()
         left = stack.pop()
         op = operations.pop()
+        
 
-        if op == div and right == 0:
+        if op == '/' and right == 0:
             right = 1 # Avoid division by zero.
 
-        result = op(left, right)
+        result = fn[op](left, right)
         stack.append(result)
     
     return stack[0] 
 
 
 def is_terminal(val):
-    return callable(val) or isinstance(val, int)
+    return isinstance(val, str)
     
     
 if __name__ == '__main__':
-    a = ''.join(np.random.choice(['0', '1'], 80))
-    CODON_SIZE = 8
+    a = ''.join(np.random.choice(['0', '1'], 160))
+    CODON_SIZE = 16
     MAX_FUNCTION_SIZE = 100
     NUM_VARIABLES = 10
-    print(translate(a, NUM_VARIABLES, CODON_SIZE, MAX_FUNCTION_SIZE))
+    f = translate(a, NUM_VARIABLES, CODON_SIZE, MAX_FUNCTION_SIZE)
+    print('-' in precedence)
