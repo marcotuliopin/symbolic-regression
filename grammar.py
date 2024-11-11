@@ -1,13 +1,6 @@
 import numpy as np
 from operator import add, sub, mul, truediv as div
 
-precedence = {
-    '*': 2,
-    '/': 2,
-    '+': 1,
-    '-': 1,
-}
-
 fn = {
     '+': add,
     '-': sub,
@@ -70,46 +63,32 @@ def translate(genes: str, number_of_vars: int, codon_size: int, max_function_siz
         function[function_idx: function_idx + 1] = val # Replace the current function with the evaluated one.
         genes_idx = (genes_idx + 1) % number_of_codons
 
-    return ''.join(function)
+    return function
     
 
-def evaluate_function(expr, diffs):
-    stack = []
-    operations = []
+def evaluate_function(expr: np.ndarray, diffs: np.ndarray):
+    if len(expr) == 1:
+        return diffs[int(expr[0])]
     
-    for token in expr:
-        if not token in precedence: # If its a variable.
-            stack.append(diffs[int(token)])
+    left = diffs[int(expr[0])]
+    op = expr[1]
+    right = diffs[int(expr[2])]
+    if op == '/' and right == 0:
+        right = 1
 
-        else:
-            # When an operation with less precedence is found, we evaluate the stack before
-            # adding the new operation to the stack.
-            while (operations and precedence[operations[-1]] >= precedence[token]):
-                right = stack.pop()
-                left = stack.pop()
-                op = operations.pop()
+    result = fn[op](left, right)
 
-                if op == '/' and right == 0:
-                    right = 1 # Avoid division by zero.
-
-                result = fn[op](left, right)
-                stack.append(result) # The result is pushed back to the stack.
-
-            operations.append(token)
-    # Evaluate the remaining operations in the stack.
-    while operations:
-        right = stack.pop()
-        left = stack.pop()
-        op = operations.pop()
-        
-
+    i = 3
+    while i < len(expr):
+        op = expr[i]
+        right = diffs[int(expr[i + 1])]
         if op == '/' and right == 0:
-            right = 1 # Avoid division by zero.
+            right = 1
 
-        result = fn[op](left, right)
-        stack.append(result)
-    
-    return stack[0] 
+        result = fn[op](result, right)
+        i += 2
+
+    return result
 
 
 def is_terminal(val):
@@ -122,4 +101,3 @@ if __name__ == '__main__':
     MAX_FUNCTION_SIZE = 100
     NUM_VARIABLES = 10
     f = translate(a, NUM_VARIABLES, CODON_SIZE, MAX_FUNCTION_SIZE)
-    print('-' in precedence)

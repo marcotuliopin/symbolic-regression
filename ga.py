@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from multiprocessing import Pool
 import config
 from typing import List, Optional
 import numpy as np
@@ -23,7 +22,7 @@ class SelectionMethods:
     WORST: str = 'worst'
 
 
-def initialize_population(data: np.ndarray, labels: np.ndarray) -> Population:
+def initialize_population(data: np.ndarray, labels: np.ndarray, executor) -> Population:
     """
     Initialize the whole population with random genes.
     """
@@ -32,24 +31,23 @@ def initialize_population(data: np.ndarray, labels: np.ndarray) -> Population:
     chunks = [population[i:i + config.chunk_size] for i in range(0, len(population), config.chunk_size)]
     args_chunks = [(chunk, data, labels) for chunk in chunks]
 
-    with Pool() as executor:
-        results = executor.map(compute_fitness_chunk, args_chunks)
+    results = executor.map(compute_fitness_chunk, args_chunks)
     population = [individual for chunk in results for individual in chunk]
 
     return population
 
 
-def evolve(population: Population, data: np.ndarray, labels: np.ndarray, steps: int, f: str) -> Population:
+def evolve(population: Population, data: np.ndarray, labels: np.ndarray, executor, steps: int, f: str) -> Population:
     """
     Evolve the solution to the final stage.
     """
     write_stats(population, f, -1, 0)
     for i in tqdm(range(steps), desc='Progress'):
-        population[:], number_of_improvements = step(population, data, labels)
+        population, number_of_improvements = step(population, data, labels, executor)
         write_stats(population, f, i, number_of_improvements)
 
 
-def step(population: Population, data: np.ndarray, labels: np.ndarray) -> Population:
+def step(population: Population, data: np.ndarray, labels: np.ndarray, executor) -> Population:
     """
     Make one step in the evolution process.
     """
@@ -59,28 +57,28 @@ def step(population: Population, data: np.ndarray, labels: np.ndarray) -> Popula
 
     # Crossover.
     parents = select(population, repeat=config.population_size-1)
-    for _ in range(0, len(parents), 2):
+    for _ in range(0, len(parents) // 2):
         parent1, parent2 = np.random.choice(parents, 2)
         if np.random.random() < config.crossover_prob:
             children = crossover(parent1.genes, parent2.genes)
             offspring.extend(children)
         else:
             offspring.extend([parent1, parent2])
-    
+
     # Mutation. 
     for individual in offspring:
         if np.random.random() < config.mutation_prob:
             mutate(individual)
     
     # Fitness evaluation.
-    chunks = [population[i:i + config.chunk_size] for i in range(0, len(population), config.chunk_size)]
+    chunks = [offspring[i:i + config.chunk_size] for i in range(0, len(offspring), config.chunk_size)]
     args_chunks = [(chunk, data, labels) for chunk in chunks]
-    with Pool() as executor:
-        results = executor.map(compute_fitness_chunk, args_chunks)
+
+    results = executor.map(compute_fitness_chunk, args_chunks)
     offspring = [individual for chunk in results for individual in chunk]
 
     # Calculate stats.
-    mean_fitness = np.mean([individual.fitness for individual in population])
+    mean_fitness = np.mean([individual.fitness for individual in offspring])
     for child in offspring:
         number_of_improvements += 1 if child.fitness > mean_fitness else 0
     
