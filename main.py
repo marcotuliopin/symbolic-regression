@@ -39,6 +39,7 @@ def set_config(params):
     config.number_of_generations = params[5]
     config.crossover_prob = params[0]
     config.mutation_prob = params[1]
+    config.gene_mutation_prob = params[2]
 
 
 if __name__ == '__main__':
@@ -51,6 +52,7 @@ if __name__ == '__main__':
         set_config(params)
         directory = config.get_directory_name(data_to_use, *params)
         makedirs(directory, exist_ok=True)
+        print(directory)
 
         best_individual = None
         for i in range(number_of_iterations):
@@ -64,7 +66,7 @@ if __name__ == '__main__':
             worst_fitness = 0
 
             # Run the genetic algorithm
-            evolve(population, data_train, labels_train, executor, steps=config.number_of_generations, f=f)
+            population = evolve(population, data_train, labels_train, executor, steps=config.number_of_generations, f=f)
 
             if best_individual is None:
                 best_individual = max(population, key=lambda x: x.fitness)

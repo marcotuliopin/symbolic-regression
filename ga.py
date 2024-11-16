@@ -45,6 +45,7 @@ def evolve(population: Population, data: np.ndarray, labels: np.ndarray, executo
     for i in tqdm(range(steps), desc='Progress'):
         population, number_of_improvements = step(population, data, labels, executor)
         write_stats(population, f, i, number_of_improvements)
+    return population
 
 
 def step(population: Population, data: np.ndarray, labels: np.ndarray, executor) -> Population:
@@ -174,7 +175,7 @@ def fitness(individual: Individual, data: np.ndarray, labels_true: np.ndarray) -
     if dmx is None:
         return 0
 
-    clustering = AgglomerativeClustering(metric="precomputed", linkage="average").fit(dmx)
+    clustering = AgglomerativeClustering(metric="precomputed", linkage="complete").fit(dmx)
     labels_pred = clustering.labels_
     
     v = v_measure_score(labels_true, labels_pred)
